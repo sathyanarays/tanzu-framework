@@ -647,7 +647,7 @@ spec:
               {{- end }}
               sudo: ALL=(ALL) NOPASSWD:ALL
   - name: kubeVIPPod
-    #enabledIf: '{{ not .aviAPIServerHAProvider }}'
+    enabledIf: '{{ not .aviAPIServerHAProvider }}'
     definitions:
     - selector:
         apiVersion: controlplane.cluster.x-k8s.io/v1beta1
