@@ -230,7 +230,7 @@ func flatten(entry logEntry) (string, error) { // nolint:gocyclo
 		}
 		str += fmt.Sprintf(" %s=%s", k, prettyValue)
 	}
-	if str[len(str)-1] != '\n' {
+	if len(str) > 0 && str[len(str)-1] != '\n' {
 		str += "\n"
 	}
 
