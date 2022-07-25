@@ -14,6 +14,7 @@ const (
 	TKGSClusterClassNamespace  = "vmware-system-tkg"
 	TKGSTKCAPINamespace        = "vmware-system-tkg"
 	TKGStkcapiNamespace        = "vmware-system-tkg"
+	CorePackagesNamespace      = "vmware-system-tkg"
 
 	ErrorMsgFeatureGateNotActivated = "vSphere with Tanzu environment detected, however, the feature '%v' is not activated in '%v' namespace"
 	ErrorMsgFeatureGateStatus       = "error while checking feature '%v' status in namespace '%v'"

@@ -179,7 +179,7 @@ func (c *TkgClient) CreateCluster(options *CreateClusterOptions, waitForCluster 
 	if !waitForCluster {
 		return false, nil
 	}
-	return true, c.waitForClusterCreation(regionalClusterClient, options, isPacific)
+	return true, c.waitForClusterCreation(regionalClusterClient, options)
 }
 
 // getClusterConfigurationBytes returns cluster configuration by taking into consideration of legacy vs clusterclass based cluster creation
@@ -210,7 +210,7 @@ func getContentFromInputFile(fileName string) ([]byte, error) {
 	return content, nil
 }
 
-func (c *TkgClient) waitForClusterCreation(regionalClusterClient clusterclient.Client, options *CreateClusterOptions, isTKGSCluster bool) error {
+func (c *TkgClient) waitForClusterCreation(regionalClusterClient clusterclient.Client, options *CreateClusterOptions) error {
 	log.Info("Waiting for cluster to be initialized...")
 	kubeConfigBytes, err := c.WaitForClusterInitializedAndGetKubeConfig(regionalClusterClient, options.ClusterName, options.TargetNamespace)
 	if err != nil {
@@ -236,15 +236,28 @@ func (c *TkgClient) waitForClusterCreation(regionalClusterClient clusterclient.C
 	}
 
 	c.WaitForAutoscalerDeployment(regionalClusterClient, options.ClusterName, options.TargetNamespace)
+	workloadClusterClient, err := clusterclient.NewClient(workloadClusterKubeconfigPath, kubeContext, clusterclient.Options{OperationTimeout: 15 * time.Minute})
+	if err != nil {
+		return errors.Wrap(err, "unable to create workload cluster client")
+	}
 
-	if !isTKGSCluster {
-		log.Info("Waiting for addons installation...")
-
-		workloadClusterClient, err := clusterclient.NewClient(workloadClusterKubeconfigPath, kubeContext, clusterclient.Options{OperationTimeout: 15 * time.Minute})
-		if err != nil {
-			return errors.Wrap(err, "unable to create workload cluster client")
+	isClusterClassBased, err := regionalClusterClient.IsClusterClassBased(options.ClusterName, options.TargetNamespace)
+	if err != nil {
+		return errors.Wrap(err, "error while checking workload cluster type")
+	}
+	if isClusterClassBased {
+		log.Info("waiting for addons core packages installation...")
+		if err := c.WaitForAddonsCorePackagesInstallation(waitForAddonsOptions{
+			regionalClusterClient: regionalClusterClient,
+			workloadClusterClient: workloadClusterClient,
+			clusterName:           options.ClusterName,
+			namespace:             options.TargetNamespace,
+			waitForCNI:            true,
+		}); err != nil {
+			return errors.Wrap(err, "error waiting for addons to get installed")
 		}
-
+	} else {
+		log.Info("waiting for addons installation...")
 		if err := c.WaitForAddons(waitForAddonsOptions{
 			regionalClusterClient: regionalClusterClient,
 			workloadClusterClient: workloadClusterClient,
@@ -254,9 +267,9 @@ func (c *TkgClient) waitForClusterCreation(regionalClusterClient clusterclient.C
 		}); err != nil {
 			return errors.Wrap(err, "error waiting for addons to get installed")
 		}
-		log.Info("Waiting for packages to be up and running...")
+		log.Info("waiting for packages to be up and running...")
 		if err := c.WaitForPackages(regionalClusterClient, workloadClusterClient, options.ClusterName, options.TargetNamespace, false); err != nil {
-			log.Warningf("Warning: Cluster is created successfully, but some packages are failing. %v", err)
+			log.Warningf("warning: Cluster is created successfully, but some packages are failing. %v", err)
 		}
 	}
 	return nil
@@ -405,7 +418,18 @@ func (c *TkgClient) waitForCRS(options waitForAddonsOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "error waiting for ClusterResourceSet object to be applied for the cluster")
 	}
+
 	return nil
+}
+
+// WaitForAddonsCorePackagesInstallation gets ClusterBootstrap and collects list of addons core packages, and monitors the kapp controller package installation in management cluster and rest of core packages installation in workload cluster
+func (c *TkgClient) WaitForAddonsCorePackagesInstallation(options waitForAddonsOptions) error {
+	clusterBootstrap, err := GetClusterBootstrap(options.regionalClusterClient, options.clusterName, options.namespace)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("error while getting ClusterBootstrap object for workload cluster: %v", options.clusterName))
+	}
+	packages := GetCorePackagesFromCB(clusterBootstrap)
+	return MonitorAddonsCorePackageInstallation(options.regionalClusterClient, options.workloadClusterClient, packages, c.getPackageInstallTimeoutFromConfig())
 }
 
 func (c *TkgClient) createPacificCluster(options *CreateClusterOptions, waitForCluster bool) (err error) {
@@ -454,7 +478,7 @@ func (c *TkgClient) createPacificCluster(options *CreateClusterOptions, waitForC
 
 	log.V(3).Infof("Waiting for the Tanzu Kubernetes Cluster service for vSphere workload cluster\n")
 	if options.IsInputFileClusterClassBased {
-		err = c.waitForClusterCreation(clusterClient, options, options.IsInputFileClusterClassBased)
+		err = c.waitForClusterCreation(clusterClient, options)
 	} else {
 		err = clusterClient.WaitForPacificCluster(clusterName, namespace)
 	}

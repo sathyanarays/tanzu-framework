@@ -414,33 +414,7 @@ func (c *TkgClient) WaitForPackages(regionalClusterClient, currentClusterClient 
 			}
 		}
 	}
-
-	// Start waiting for all packages in parallel using group.Wait
-	// Note: As PackageInstall resources are created in the cluster itself
-	// we are using currentClusterClient which will point to correct cluster
-	group, _ := errgroup.WithContext(context.Background())
-
-	for _, packageName := range packageInstallNames {
-		pn := packageName
-		log.V(3).Warningf("Waiting for package: %s", pn)
-		group.Go(
-			func() error {
-				err := currentClusterClient.WaitForPackageInstall(pn, constants.TkgNamespace, c.getPackageInstallTimeoutFromConfig())
-				if err != nil {
-					log.V(3).Warningf("Failure while waiting for package '%s'", pn)
-				} else {
-					log.V(3).Infof("Successfully reconciled package: %s", pn)
-				}
-				return err
-			})
-	}
-
-	err = group.Wait()
-	if err != nil {
-		return errors.Wrap(err, "Failure while waiting for packages to be installed")
-	}
-
-	return nil
+	return WaitForPackagesInstallation(currentClusterClient, packageInstallNames, constants.TkgNamespace, c.getPackageInstallTimeoutFromConfig())
 }
 
 func (c *TkgClient) getPackageInstallTimeoutFromConfig() time.Duration {
