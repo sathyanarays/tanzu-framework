@@ -1,0 +1,72 @@
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: Readiness
+metadata:
+  name: baseline
+spec:
+  checks:
+  - name: com.vmware.tanzu.certificate-management
+    type: basic
+    category: Security
+  - name: com.vmware.tanzu.package-management
+    type: basic
+    category: Packaging
+  - name: com.vmware.tanzu.secret-management
+    type: basic
+    category: Security
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: cert-manager  
+spec:
+  checkRef: com.vmware.tanzu.certificate-management
+  repeatInterval: 30s
+  conditions:
+  - name: certificate-crd
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition      
+      name: certificates.cert-manager.io
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: kapp-controller  
+spec:
+  checkRef: com.vmware.tanzu.package-management
+  repeatInterval: 60s
+  conditions:
+  - name: package-crd
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition      
+      name: packageinstalls.packaging.carvel.dev
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: secretgen-controller  
+spec:
+  checkRef: com.vmware.tanzu.secret-management
+  repeatInterval: 60s
+  conditions:
+  - name: secrettemplates-crd
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition      
+      name: secrettemplates.secretgen.carvel.dev
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: mittwald-secretgen  
+spec:
+  checkRef: com.vmware.tanzu.secret-management
+  repeatInterval: 60s
+  conditions:
+  - name: package-crd
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition      
+      name: sshkeypairs.secretgenerator.mittwald.de
