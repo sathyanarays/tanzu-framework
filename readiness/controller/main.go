@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	corev1alpha2 "github.com/vmware-tanzu/tanzu-framework/apis/core/v1alpha2"
+	newcapabilitycontroller "github.com/vmware-tanzu/tanzu-framework/readiness/controller/pkg/capabilities"
 	"github.com/vmware-tanzu/tanzu-framework/readiness/controller/pkg/conditions"
 	readinesscontroller "github.com/vmware-tanzu/tanzu-framework/readiness/controller/pkg/readiness"
 	readinessprovidercontroller "github.com/vmware-tanzu/tanzu-framework/readiness/controller/pkg/readinessprovider"
@@ -89,6 +90,15 @@ func main() {
 		ResourceExistenceCondition: conditions.NewResourceExistenceConditionFunc(dynamicClient, discoveryClient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReadinessProvider")
+		os.Exit(1)
+	}
+
+	if err = (&newcapabilitycontroller.CapabilityReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Log:    ctrl.Log.WithName("controllers").WithName("NewCapability").WithValues("apigroup", "core"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Readiness")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

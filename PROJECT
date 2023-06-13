@@ -44,4 +44,7 @@ resources:
 - group: core
   kind: ReadinessProvider
   version: v1alpha2
+- group: core
+  kind: NewCapability
+  version: v1alpha2
 version: "2"
