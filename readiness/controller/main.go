@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
@@ -42,7 +43,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(v1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -150,6 +151,7 @@ func main() {
 		Log:                        ctrl.Log.WithName("controllers").WithName("ReadinessProvider").WithValues("apigroup", "core"),
 		Scheme:                     mgr.GetScheme(),
 		ResourceExistenceCondition: conditions.NewResourceExistenceConditionFunc(dynamicClient, discoveryClient),
+		PodExecutionCondition:      conditions.NewPodExecutionCondition(cl),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReadinessProvider")
 		os.Exit(1)

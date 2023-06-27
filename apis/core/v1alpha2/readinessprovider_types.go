@@ -4,6 +4,7 @@
 package v1alpha2
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -52,6 +53,9 @@ type ReadinessProviderCondition struct {
 	// ResourceExistenceCondition is the condition that checks for the presence of a certain resource in the cluster
 	//+kubebuilder:validation:Optional
 	ResourceExistenceCondition *ResourceExistenceCondition `json:"resourceExistenceCondition"`
+
+	//+kubebuilder:validation:Optional
+	PodExecutionCondition *PodExecutionCondition `json:"podExecutionCondition"`
 }
 
 // ResourceExistenceCondition is a type of readiness provider condition that checks for existence of given resource
@@ -70,6 +74,10 @@ type ResourceExistenceCondition struct {
 	//+kubebuilder:validation:Optional
 	Namespace *string `json:"namespace"`
 	Name      string  `json:"name"`
+}
+
+type PodExecutionCondition struct {
+	PodSpec v1.PodSpec `json:"podSpec"`
 }
 
 // ReadinessProviderStatus defines the observed state of ReadinessProvider

@@ -1,0 +1,216 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: compliance-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deployment-reader
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: compliance-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: compliance-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: deployment-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: cert-manager-compliance-canary 
+spec:
+  checkRefs: 
+  - com.vmware.cert-manager.compliance.canary
+  conditions:
+  - name: controller-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "CRITICAL"
+        restartPolicy: Never
+  - name: webhook-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager-webhook"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "CRITICAL"
+        restartPolicy: Never
+  - name: cainjector-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager-cainjector"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "CRITICAL"
+        restartPolicy: Never
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider
+metadata:
+  name: cert-manager-compliance-prod 
+spec:
+  checkRefs: 
+  - com.vmware.cert-manager.compliance.prod
+  conditions:
+  - name: controller-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "HIGH"
+        restartPolicy: Never
+  - name: webhook-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager-webhook"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "HIGH"
+        restartPolicy: Never
+  - name: cainjector-scan
+    podExecutionCondition:
+      podSpec:
+        serviceAccountName: compliance-sa
+        containers:
+        - name: trivy
+          image: sathyatvrcbe/trivy_test:v4
+          command: ['sh', '-c', 'python3 /scanner.py']
+          env:
+          - name: DEPLOYMENT_NAME
+            value: "cert-manager-cainjector"
+          - name: DEPLOYMENT_NAMESPACE
+            value: "cert-manager"
+          - name: SEVERITY
+            value: "HIGH"
+        restartPolicy: Never
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: ReadinessProvider # CapabilityProvider
+metadata:
+  name: cert-manager
+spec:
+  checkRefs:
+  - com.vmware.cert-manager.api
+  conditions:
+  - name: certificate
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: certificates.cert-manager.io
+  - name: certificate-request
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: certificaterequests.cert-manager.io
+  - name: challenge
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: challenges.acme.cert-manager.io
+  - name: cluster-issuer
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: clusterissuers.cert-manager.io
+  - name: issuer
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: issuers.cert-manager.io
+  - name: order
+    resourceExistenceCondition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: orders.acme.cert-manager.io
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: Readiness
+metadata:
+  name: dev-class
+spec:
+  checks:
+  - name: com.vmware.cert-manager.api
+    type: basic
+    category: security  
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: Readiness
+metadata:
+  name: canary-class
+spec:
+  checks:
+  - name: com.vmware.cert-manager.api
+    type: basic
+    category: security
+  - name: com.vmware.cert-manager.compliance.canary
+    type: basic
+    category: compliance
+---
+apiVersion: core.tanzu.vmware.com/v1alpha2
+kind: Readiness
+metadata:
+  name: prod-class
+spec:
+  checks:
+  - name: com.vmware.cert-manager.api
+    type: basic
+    category: security
+  - name: com.vmware.cert-manager.compliance.prod
+    type: basic
+    category: compliance

@@ -48,7 +48,7 @@ func (r *ReadinessProvider) validateObject() error {
 	var allErrors field.ErrorList
 
 	for _, condition := range r.Spec.Conditions {
-		if condition.ResourceExistenceCondition == nil {
+		if conditionTypesDefined(condition) != 1 {
 			allErrors = append(
 				allErrors,
 				field.Invalid(
@@ -62,4 +62,18 @@ func (r *ReadinessProvider) validateObject() error {
 	}
 
 	return apierrors.NewInvalid(GroupVersion.WithKind("ReadinessProvider").GroupKind(), r.Name, allErrors)
+}
+
+func conditionTypesDefined(condition ReadinessProviderCondition) int {
+	count := 0
+
+	if condition.ResourceExistenceCondition != nil {
+		count = count + 1
+	}
+
+	if condition.PodExecutionCondition != nil {
+		count = count + 1
+	}
+
+	return count
 }
